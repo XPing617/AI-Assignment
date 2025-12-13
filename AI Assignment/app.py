@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
@@ -18,8 +17,8 @@ div.stButton > button {
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. DATA & MODEL LOADING ---
-@st.cache_data
+# --- 2. DATA & MODEL LOADING (TRAIN ONLY ONCE) ---
+@st.cache_resource
 def load_and_train():
     df = pd.read_csv('heart.csv').drop_duplicates()
 
@@ -27,12 +26,11 @@ def load_and_train():
     y = df['target']
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    # Random Forest DOES NOT require scaling
     model = RandomForestClassifier(
-        n_estimators=200,
+        n_estimators=300,
         random_state=42,
         class_weight='balanced'
     )
@@ -117,8 +115,8 @@ with st.expander("🫀 Heart Exam & Symptoms", expanded=True):
         thal_map = {"Normal": 1, "Fixed Defect": 2, "Reversible Defect": 3}
         thal = thal_map[thal_label]
 
-# --- 5. INPUT DATAFRAME ---
-input_data = pd.DataFrame([[
+# --- 5. INPUT DATAFRAME (ENSURE ORDER MATCHES TRAINING) ---
+input_data = pd.DataFrame([[ 
     age, sex, cp, trestbps, chol,
     fbs, restecg, thalach, exang,
     oldpeak, slope, ca, thal
@@ -126,7 +124,7 @@ input_data = pd.DataFrame([[
 
 st.markdown("---")
 
-# --- 6. REPORT & PREDICTION ---
+# --- 6. REPORT & STABLE PREDICTION ---
 st.subheader(f"📊 Assessment Summary for {name}")
 
 m1, m2, m3, m4 = st.columns(4)
@@ -136,25 +134,25 @@ m3.metric("Max Heart Rate", f"{thalach} bpm")
 m4.metric("ST Depression", f"{oldpeak:.2f}")
 
 st.caption(f"Model Accuracy (Test Set): {model_accuracy:.2f}")
+st.caption("Predictions may be less reliable for values under-represented in the training data.")
 
 if st.button("RUN DIAGNOSTIC MODEL"):
     risk_prob = model.predict_proba(input_data)[0][1]
 
-    if risk_prob >= 0.5:
-        st.error("⚠️ HIGH RISK DETECTED")
-        st.markdown(f"""
-        <div style='background-color:#ffcccc; padding:20px; border-radius:10px;'>
-        <h3>Diagnosis: Positive for Heart Disease</h3>
-        <p><strong>Estimated Risk:</strong> {risk_prob*100:.1f}%</p>
-        <p>Please consult a cardiologist.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    if risk_prob >= 0.7:
+        label = "HIGH RISK"
+        color = "#ffcccc"
+    elif risk_prob >= 0.4:
+        label = "MODERATE RISK"
+        color = "#fff3cd"
     else:
-        st.success("✅ LOW RISK / HEALTHY")
-        st.markdown(f"""
-        <div style='background-color:#d4edda; padding:20px; border-radius:10px;'>
-        <h3>Diagnosis: Negative (Healthy)</h3>
-        <p><strong>Estimated Risk:</strong> {(1-risk_prob)*100:.1f}%</p>
-        <p>Maintain a healthy lifestyle.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        label = "LOW RISK"
+        color = "#d4edda"
+
+    st.markdown(f"""
+    <div style='background-color:{color}; padding:20px; border-radius:10px;'>
+    <h3>{label}</h3>
+    <p><strong>Estimated Probability of Heart Disease:</strong> {risk_prob*100:.1f}%</p>
+    <p>This result is a decision-support estimate, not a medical diagnosis.</p>
+    </div>
+    """, unsafe_allow_html=True)
