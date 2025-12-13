@@ -22,6 +22,14 @@ div.stButton > button {
 def load_and_train():
     df = pd.read_csv('heart.csv').drop_duplicates()
 
+    # Ensure correct categorical encoding matching the dataset
+    df['cp'] = df['cp'].astype(int)
+    df['slope'] = df['slope'].astype(int)
+    df['thal'] = df['thal'].astype(int)
+    df['sex'] = df['sex'].astype(int)
+    df['fbs'] = df['fbs'].astype(int)
+    df['exang'] = df['exang'].astype(int)
+
     X = df.drop('target', axis=1)
     y = df['target']
 
@@ -60,7 +68,8 @@ with col1:
 with col2:
     age = st.number_input("Age", 20, 90, 50)
 with col3:
-    sex = st.selectbox("Sex", (1, 0), format_func=lambda x: "Male" if x == 1 else "Female")
+    sex_label = st.selectbox("Sex", ("Male", "Female"))
+    sex = 1 if sex_label == "Male" else 0
 
 with st.expander("🩺 Vitals & Blood Work", expanded=True):
     c1, c2, c3, c4 = st.columns(4)
@@ -69,53 +78,36 @@ with st.expander("🩺 Vitals & Blood Work", expanded=True):
     with c2:
         chol = st.number_input("Cholesterol (mg/dl)", 100, 600, 200)
     with c3:
-        fbs = st.selectbox(
-            "Fasting Blood Sugar > 120 mg/dl?",
-            (0, 1),
-            format_func=lambda x: "Yes" if x == 1 else "No"
-        )
+        fbs_label = st.selectbox("Fasting Blood Sugar > 120 mg/dl?", ("No", "Yes"))
+        fbs = 1 if fbs_label == "Yes" else 0
     with c4:
         thalach = st.number_input("Max Heart Rate", 60, 220, 150)
 
 with st.expander("🫀 Heart Exam & Symptoms", expanded=True):
     c1, c2, c3 = st.columns(3)
     with c1:
-        cp = st.selectbox(
-            "Chest Pain Type",
-            (0, 1, 2, 3),
-            format_func=lambda x: [
-                "Typical Angina",
-                "Atypical Angina",
-                "Non-anginal Pain",
-                "Asymptomatic"
-            ][x]
-        )
-        exang = st.selectbox("Exercise Induced Angina?", (0, 1), format_func=lambda x: "Yes" if x == 1 else "No")
+        cp_label = st.selectbox("Chest Pain Type", ("Typical Angina", "Atypical Angina", "Non-anginal Pain", "Asymptomatic"))
+        cp_map = {"Typical Angina": 0, "Atypical Angina": 1, "Non-anginal Pain": 2, "Asymptomatic": 3}
+        cp = cp_map[cp_label]
+        exang_label = st.selectbox("Exercise Induced Angina?", ("No", "Yes"))
+        exang = 1 if exang_label == "Yes" else 0
 
     with c2:
-        restecg = st.selectbox(
-            "Resting ECG Result",
-            (0, 1, 2),
-            format_func=lambda x: ["Normal", "ST-T Abnormality", "LV Hypertrophy"][x]
-        )
-        slope = st.selectbox(
-            "ST Slope",
-            (0, 1, 2),
-            format_func=lambda x: ["Upsloping", "Flat", "Downsloping"][x]
-        )
+        restecg_label = st.selectbox("Resting ECG Result", ("Normal", "ST-T Abnormality", "LV Hypertrophy"))
+        restecg_map = {"Normal": 0, "ST-T Abnormality": 1, "LV Hypertrophy": 2}
+        restecg = restecg_map[restecg_label]
+        slope_label = st.selectbox("ST Slope", ("Upsloping", "Flat", "Downsloping"))
+        slope_map = {"Upsloping": 0, "Flat": 1, "Downsloping": 2}
+        slope = slope_map[slope_label]
 
     with c3:
         oldpeak = st.number_input("ST Depression", 0.0, 10.0, 0.0, step=0.1, format="%.2f")
         ca = st.slider("Major Vessels (Fluoroscopy)", 0, 3, 0)
-
-        thal_label = st.selectbox(
-            "Thalassemia",
-            ("Normal", "Fixed Defect", "Reversible Defect")
-        )
+        thal_label = st.selectbox("Thalassemia", ("Normal", "Fixed Defect", "Reversible Defect"))
         thal_map = {"Normal": 1, "Fixed Defect": 2, "Reversible Defect": 3}
         thal = thal_map[thal_label]
 
-# --- 5. INPUT DATAFRAME (ENSURE ORDER MATCHES TRAINING) ---
+# --- 5. INPUT DATAFRAME (ENCODING & ORDER MATCH TRAINING) ---
 input_data = pd.DataFrame([[ 
     age, sex, cp, trestbps, chol,
     fbs, restecg, thalach, exang,
